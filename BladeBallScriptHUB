@@ -1,0 +1,364 @@
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+local Window = Rayfield:CreateWindow({
+   Name = "🔥 Blade Ball v2",
+   LoadingTitle = "Blade Ball v2",
+   LoadingSubtitle = "by mamalikeme#0000",
+   ConfigurationSaving = {
+      Enabled = false,
+      FolderName = nil, -- Create a custom folder for your hub/game
+      FileName = "Example Hub"
+   },
+   Discord = {
+      Enabled = true,
+      Invite = "zeFQaxvFnK", -- The Discord invite code, do not include discord.gg/. E.g. discord.gg/ABCD would be ABCD
+      RememberJoins = true -- Set this to false to make them join the discord every time they load it up
+   },
+   KeySystem = true, -- Set this to true to use our key system
+   KeySettings = {
+      Title = "Key  Hub",
+      Subtitle = "Key System",
+      Note = "Key In Discord Server",
+      FileName = "Key Hub", -- It is recommended to use something unique as other scripts using Rayfield may overwrite your key file
+      SaveKey = true, -- The user's key will be saved, but if you change the key, they will be unable to use your script
+      GrabKeyFromSite = true, -- If this is true, set Key below to the RAW site you would like Rayfield to get the key from
+      Key = {"https://pastebin.com/raw/LeBKvdbW"} -- List of keys that will be accepted by the system, can be RAW file links (pastebin, github etc) or simple strings ("hello","key22")
+   }
+})
+local AutoParry = Window:CreateTab("Auto Parry", nil)
+local Random = Window:CreateTab("Random", nil)
+local Main = Window:CreateTab("Main", nil)
+local function startAutoParry()
+    local character = localPlayer.Character or localPlayer.CharacterAdded:Wait()
+    local ballsFolder = workspace:WaitForChild("Balls")
+    local parryButtonPress = replicatedStorage.Remotes.ParryButtonPress
+    local abilityButtonPress = replicatedStorage.Remotes.AbilityButtonPress
+
+    print("successfully")
+
+    local function onCharacterAdded(newCharacter)
+        character = newCharacter
+    end
+    localPlayer.CharacterAdded:Connect(onCharacterAdded)
+
+    if character then
+        print("Character found.")
+    else
+        print("Character not found.")
+        return
+    end
+    
+
+local function chooseNewFocusedBall()
+    local balls = ballsFolder:GetChildren()
+    for _, ball in ipairs(balls) do
+        if ball:GetAttribute("realBall") ~= nil and ball:GetAttribute("realBall") == true then
+            focusedBall = ball
+            print(focusedBall.Name)
+            break
+        elseif ball:GetAttribute("target") ~= nil then
+            focusedBall = ball
+            print(focusedBall.Name)
+            break
+        end
+    end
+    
+    if focusedBall == nil then
+        print("Debug: Could not find a ball that's the realBall or has a target.")
+    end
+    return focusedBall
+end
+
+
+
+
+
+    chooseNewFocusedBall()
+
+    local BASE_THRESHOLD = 0.15
+    local VELOCITY_SCALING_FACTOR_FAST = 0.050
+    local VELOCITY_SCALING_FACTOR_SLOW = 0.1
+
+    local function getDynamicThreshold(ballVelocityMagnitude)
+        if ballVelocityMagnitude > 60 then
+            print("Going Fast")
+            return math.max(0.20, BASE_THRESHOLD - (ballVelocityMagnitude * VELOCITY_SCALING_FACTOR_FAST))
+        else
+            return math.min(0.01, BASE_THRESHOLD + (ballVelocityMagnitude * VELOCITY_SCALING_FACTOR_SLOW))
+        end
+    end
+
+    local function timeUntilImpact(ballVelocity, distanceToPlayer, playerVelocity)
+        local directionToPlayer = (character.HumanoidRootPart.Position - focusedBall.Position).Unit
+        local velocityTowardsPlayer = ballVelocity:Dot(directionToPlayer) - playerVelocity:Dot(directionToPlayer)
+        
+        if velocityTowardsPlayer <= 0 then
+            return math.huge
+        end
+        
+        return (distanceToPlayer - sliderValue) / velocityTowardsPlayer
+    end
+
+    local function isWalkSpeedZero()
+        local humanoid = character:FindFirstChildOfClass("Humanoid")
+        if humanoid then
+            return humanoid.WalkSpeed == 0
+        end
+        return false
+    end
+
+
+    local function checkBallDistance()
+        if not character or not character:FindFirstChild("Highlight") then return end
+
+        local charPos = character.PrimaryPart.Position
+        local charVel = character.PrimaryPart.Velocity
+
+        if focusedBall and not focusedBall.Parent then
+            print("Focused ball lost parent. Choosing a new focused ball.")
+            chooseNewFocusedBall()
+        end
+        if not focusedBall then 
+            print("No focused ball.")
+            chooseNewFocusedBall()
+        end
+
+        local ball = focusedBall
+        local distanceToPlayer = (ball.Position - charPos).Magnitude
+        local ballVelocityTowardsPlayer = ball.Velocity:Dot((charPos - ball.Position).Unit)
+        
+        if distanceToPlayer < 10 then
+            parryButtonPress:Fire()
+        end
+        local isCheckingRage = false
+
+        if timeUntilImpact(ball.Velocity, distanceToPlayer, charVel) < getDynamicThreshold(ballVelocityTowardsPlayer) then
+            if character.Abilities["Raging Deflection"].Enabled and UseRage == true then
+                if not isCheckingRage then
+                    isCheckingRage = true
+                    abilityButtonPress:Fire()
+                    if not isWalkSpeedZero() then
+                        parryButtonPress:Fire()
+                    end
+                    isCheckingRage = false
+                end
+            else
+                parryButtonPress:Fire()
+            end
+        end
+    end
+
+
+    heartbeatConnection = game:GetService("RunService").Heartbeat:Connect(function()
+        checkBallDistance()
+    end)
+end
+
+local function stopAutoParry()
+    if heartbeatConnection then
+        heartbeatConnection:Disconnect()
+        heartbeatConnection = nil
+    end
+end
+--[[
+
+
+-- local function Stuff
+
+
+]]
+
+--[[Rayfield:Notify({
+   Title = "You executed the script",
+   Content = "Very cool gui",
+   Duration = 5,
+   Image = 13047715178,
+   Actions = { -- Notification Buttons
+      Ignore = {
+         Name = "Okay!",
+         Callback = function()
+         print("The user tapped Okay!")
+      end
+   },
+},
+})--]]
+
+
+local AutoParryToggle = AutoParry:CreateToggle({
+    Name = "Auto-Block v1",
+    CurrentValue = false,
+    Flag = "AutoParryFlag",
+    Callback = function(Value)
+        if Value then
+            startAutoParry()
+        else
+            stopAutoParry()
+        end
+    end,
+})
+local Abilities = Main:CreateSection("Abilities")
+
+local AliveFolder = Main:CreateButton({
+   Name = "Allow Use abilities/parry in lobby",
+   Callback = function()
+    character.Parent = workspace.Alive
+end
+})
+local AutoParryToggle = AutoParry:CreateButton({
+    Name = "Auto-Block v2",
+    Callback = function()
+     loadstring(game:HttpGet("https://raw.githubusercontent.com/1f0yt/community/main/Circle"))()
+    end,
+ })
+ local Discord = Main:CreateSection("Discord")
+local Descrip = Main:CreateButton({
+   Name = "Discord invite",
+   Callback = function()
+    Rayfield:Notify({
+   Title = "Credits",
+   Content = "Discord invite [ .gg/zeFQaxvFnK ]",
+   Duration = 60,
+   Image = 4483362458,
+   Actions = { -- Notification Buttons
+      Ignore = {
+         Name = "Okay!",
+         Callback = function()
+         print("The user tapped Okay!")
+      end
+   },
+},
+})
+end
+})
+ local TpToSpawn = AutoParry:CreateToggle({
+    Name = "Fake Platform [ risk getting reported using this! ]",
+    CurrentValue = false,
+    Flag = "FakePlatform",
+    Callback = function(Value)
+        FakePlatform = Value
+
+        spawn(function()
+                while true do wait()
+                if FakePlatform then
+                    character.Humanoid.HipHeight = 50
+                        else
+                            character.Humanoid.HipHeight = 0
+                    end
+                end
+            end)
+    end,
+})
+ local toplegitspawntp = AutoParry:CreateToggle({
+    Name = "Tp to Spawn [ risk getting reported using this! ]",
+    CurrentValue = false,
+    Flag = "StaySpawnFlag",
+    Callback = function(Value)
+stayspawnshit = Value
+            while true do wait()
+               if stayspawnshit then
+            
+            character.Parent = workspace.Alive
+            if localPlayer.PlayerGui.announcer.TextBox.Text == "Starting Game" or localPlayer.PlayerGui.announcer.TextBox.Text == "Starting Team Game" then
+character.Humanoid.Health = 0
+localPlayer.PlayerGui.announcer.TextBox.Text = "e"
+            task.wait(5)
+            character.HumanoidRootPart.CFrame = CFrame.new(121231212313,121231213,12123123213)
+end
+                end
+        end
+    end,
+})
+local AutoRagingDeflect = AutoParry:CreateToggle({
+    Name = "Auto Rage Parry [ MUST EQUIP RAGING DEFLECT ]",
+    CurrentValue = false,
+    Flag = "AutoRagingDeflectFlag",
+    Callback = function(Value)
+        UseRage = Value
+    end,
+})
+local AntiAfkThing = AutoParry:CreateSection("Anti Afk")
+local Toggle = AutoParry:CreateToggle({
+   Name = "Anti Afk",
+   CurrentValue = false,
+   Flag = "AntiAfk", -- A flag is the identifier for the configuration file, make sure every element has a different flag if you're using configuration saving to ensure no overlaps
+   Callback = function(Value)
+        AntiAfkLol = Value
+                while true do wait()
+            if AntiAfkLol then
+local vu = game:GetService("VirtualUser")
+game:GetService("Players").LocalPlayer.Idled:connect(function()
+   vu:Button2Down(Vector2.new(0,0),workspace.CurrentCamera.CFrame)
+   wait(1)
+   vu:Button2Up(Vector2.new(0,0),workspace.CurrentCamera.CFrame)
+end)
+        end
+    end
+   end,
+})
+local Random = Random:CreateSlider({
+   Name = "WalkSpeed Slider",
+   Range = {1, 50},
+   Increment = 1,
+   Suffix = "Speed",
+   CurrentValue = 16,
+   Flag = "sliderws", -- A flag is the identifier for the configuration file, make sure every element has a different flag if you're using configuration saving to ensure no overlaps
+   Callback = function(Value)
+        game.Players.LocalPlayer.Character.Humanoid.WalkSpeed = (Value)
+   end,
+})
+
+local AutoFramaSOON = Random:CreateToggle({
+   Name = "Auto Farm",
+   CurrentValue = false,
+   Flag = "Toggle1", -- A flag is the identifier for the configuration file, make sure every element has a different flag if you're using configuration saving to ensure no overlaps
+   Callback = function(Value)
+    Rayfield:Notify({
+        Title = "Auto Farm!",
+        Content = "soon if you want updates join discord",
+        Duration = 6.3,
+        Image = 13047715178,
+        Actions = { -- Notification Buttons
+           Ignore = {
+              Name = "Okay!",
+              Callback = function()
+              print("The user tapped Okay!")
+           end
+        },
+     },
+     })
+   end,
+})
+local AutoTelekinesis = Main:CreateToggle({
+    Name = "Auto Telekinesis (money farm)",
+    CurrentValue = false,
+    Flag = "AutoT21321elekinesis", -- A flag is the identifier for the configuration file, make sure every element has a different flag if you're using configuration saving to ensure no overlaps
+    Callback = function(Value)
+         breakballerbelike = Value
+             
+         while true do wait()
+                 if breakballerbelike then
+                     character:WaitForChild("HumanoidRootPart").CFrame = CFrame.new(12321,123213,123213)
+                     localPlayer.CharacterAdded:Connect(onCharacterAdded)
+                     local args = {
+     [1] = CFrame.new(-177.78134155273438, 22.17252540588379, -6.560810089111328) * CFrame.Angles(-0.5510220527648926, 0.4792300760746002, 0.2761117219924927),
+     [2] = {
+         ["game.Players.LocalPlayer.UserId"] = Vector3.new(721.59521484375, 437.5107421875, 13.196876525878906),
+     },
+     [3] = {
+         [1] = 800,
+         [2] = 378
+     }
+ }
+ 
+ game:GetService("ReplicatedStorage").Remotes.Telekinesis:FireServer(unpack(args))
+                     task.wait(0.2)
+                     character.HumanoidRootPart.CFrame = CFrame.new(-10002.240021, 123.299988, 200.441544)
+     task.wait(0.5)
+    character.Humanoid.Health = 0
+             task.wait(3.5)
+                     localPlayer.CharacterAdded:Connect(onCharacterAdded)
+                 character:WaitForChild("HumanoidRootPart").CFrame = CFrame.new(12321,123213,123213)
+                 end
+             end
+ 
+    end,
+ })
